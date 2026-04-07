@@ -1,0 +1,5 @@
+{
+  "functions": {
+    "app/api/unify/route.js": { "maxDuration": 60 }
+  }
+}
