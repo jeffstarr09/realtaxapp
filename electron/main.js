@@ -4,6 +4,7 @@ const fs = require("fs");
 const { parseFile } = require("../lib/parsers");
 const { classify } = require("../lib/classify");
 const { buildWorkbook } = require("../lib/excel");
+const { dedupeAmazon } = require("../lib/dedupe");
 
 function createWindow() {
   const win = new BrowserWindow({
@@ -32,12 +33,17 @@ app.on("window-all-closed", () => {
 
 ipcMain.handle("unify", async (_event, files) => {
   // files: [{ name, data: Uint8Array }]
-  const allTx = [];
+  let allTx = [];
   for (const f of files) {
     const buf = Buffer.from(f.data);
     const parsed = await parseFile(f.name, buf);
     for (const tx of parsed) allTx.push(tx);
   }
+
+  // Dedupe Amazon order-history rows against matching card charges.
+  const dedupeResult = dedupeAmazon(allTx);
+  allTx = dedupeResult.transactions;
+
   for (const tx of allTx) {
     const c = classify(tx);
     tx.category = c.category;
@@ -58,5 +64,13 @@ ipcMain.handle("unify", async (_event, files) => {
   });
   if (canceled || !filePath) return { canceled: true };
   fs.writeFileSync(filePath, xlsx);
-  return { canceled: false, filePath, total: allTx.length, dedYes, dedReview };
+  return {
+    canceled: false,
+    filePath,
+    total: allTx.length,
+    dedYes,
+    dedReview,
+    amazonMatched: dedupeResult.matched,
+    amazonRemoved: dedupeResult.removed,
+  };
 });

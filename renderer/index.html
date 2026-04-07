@@ -43,12 +43,13 @@
     <main>
       <h1>RealTax</h1>
       <p class="lead">
-        Select bank or credit card statements (PDF or CSV) from Chase, Bank of America,
-        American Express, Wells Fargo, Citi, or Discover. RealTax combines them into one
-        Excel workbook and flags likely real-estate-agent business deductions.
+        Select bank or credit card statements (PDF, CSV, or Excel) from Chase, Bank of
+        America, American Express, Wells Fargo, Citi, or Discover. You can also include
+        an Amazon order-history CSV (from Amazon &rarr; Account &rarr; Request My Data) and
+        RealTax will deduplicate Amazon charges against your card statements.
       </p>
       <div class="card">
-        <input id="files" type="file" multiple accept=".pdf,.csv" />
+        <input id="files" type="file" multiple accept=".pdf,.csv,.xlsx,.xls" />
         <ul id="filelist"></ul>
         <button id="go">Unify & Save Excel</button>
         <p id="status"></p>
@@ -102,9 +103,13 @@
             status.textContent = "Save canceled.";
           } else {
             status.className = "ok";
-            status.textContent =
+            let msg =
               `Saved to ${res.filePath} — ${res.total} transactions, ` +
               `${res.dedYes} deductible, ${res.dedReview} need review.`;
+            if (res.amazonMatched) {
+              msg += ` Matched ${res.amazonMatched} Amazon orders to card charges (removed ${res.amazonRemoved} duplicates).`;
+            }
+            status.textContent = msg;
           }
         } catch (err) {
           status.className = "err";
