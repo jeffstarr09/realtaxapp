@@ -52,6 +52,10 @@ ipcMain.handle("unify", async (_event, files) => {
     for (const tx of parsed) allTx.push(tx);
   }
 
+  // Filter to tax year 2025 only.
+  const TAX_YEAR = "2025";
+  allTx = allTx.filter((tx) => (tx.date || "").startsWith(TAX_YEAR));
+
   // Dedupe Amazon order-history rows against matching card charges.
   const dedupeResult = dedupeAmazon(allTx);
   allTx = dedupeResult.transactions;
