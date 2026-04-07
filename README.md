@@ -1,24 +1,29 @@
 # RealTax
 
-Simple Next.js web app (deployable to Vercel) that ingests bank/credit card statements
-(PDF or CSV) from Chase, Bank of America, American Express, Wells Fargo, Citi, and
-Discover, unifies them into a single Excel workbook, and flags likely tax-deductible
-transactions for a real estate agent operating through an S-corp.
+Desktop app (Electron) that ingests bank/credit card statements (PDF or CSV) from
+Chase, Bank of America, American Express, Wells Fargo, Citi, and Discover, unifies
+them into a single Excel workbook, and flags likely tax-deductible transactions for
+a real estate agent operating through an S-corp.
 
-## Run locally
+Runs entirely on your machine — statements never leave your computer, and there is
+no request timeout.
+
+## Run from source
 
 ```
 npm install
-npm run dev
+npm start
 ```
 
-Open http://localhost:3000, upload statements, and download the unified Excel file.
+## Build installers
 
-## Deploy
+```
+npm run dist          # current platform
+npm run dist:mac      # .dmg
+npm run dist:win      # .exe (NSIS)
+```
 
-Connect this repo to your Vercel project (`realtax`). Push to the branch and Vercel
-will build it. The `/api/unify` endpoint runs server-side with `nodejs` runtime and
-60s timeout (see `vercel.json`).
+Output goes to `dist/`.
 
 ## How flagging works
 
@@ -34,8 +39,6 @@ The Excel workbook contains four sheets: `All Transactions`, `Likely Deductible`
 
 ## Notes / limitations
 
-- PDF parsing uses `pdf-parse` with regex heuristics. Text-based statements work; scanned/image PDFs
-  would need OCR (not included).
-- CSV parsing normalizes the most common header schemas. Add unusual headers to `HEADER_MAP` in
-  `lib/parsers/csv.js`.
+- PDF parsing uses `pdf-parse` with regex heuristics. Text-based statements work; scanned/image
+  PDFs would need OCR (not included).
 - Always have a CPA review before filing.
