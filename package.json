@@ -1,18 +1,34 @@
 {
   "name": "realtax",
   "version": "0.1.0",
-  "private": true,
+  "description": "Unify bank/credit card statements and flag real-estate-agent tax deductions",
+  "main": "electron/main.js",
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start"
+    "start": "electron .",
+    "dist": "electron-builder",
+    "dist:mac": "electron-builder --mac",
+    "dist:win": "electron-builder --win"
   },
   "dependencies": {
-    "next": "14.2.5",
-    "react": "18.3.1",
-    "react-dom": "18.3.1",
     "pdf-parse": "1.1.1",
     "papaparse": "5.4.1",
     "exceljs": "4.4.0"
+  },
+  "devDependencies": {
+    "electron": "31.3.1",
+    "electron-builder": "24.13.3"
+  },
+  "build": {
+    "appId": "com.realtax.app",
+    "productName": "RealTax",
+    "files": [
+      "electron/**",
+      "renderer/**",
+      "lib/**",
+      "package.json"
+    ],
+    "mac": { "category": "public.app-category.finance", "target": ["dmg", "zip"] },
+    "win": { "target": ["nsis"] },
+    "linux": { "target": ["AppImage"] }
   }
 }

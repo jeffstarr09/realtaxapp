@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>RealTax</title>
+    <style>
+      body {
+        font-family: -apple-system, system-ui, sans-serif;
+        margin: 0;
+        background: #0b1020;
+        color: #e8ecf1;
+      }
+      main { max-width: 760px; margin: 0 auto; padding: 48px 24px; }
+      h1 { font-size: 32px; margin-bottom: 4px; }
+      p.lead { opacity: 0.75; margin-top: 0; }
+      .card {
+        margin-top: 24px;
+        padding: 24px;
+        background: #141a32;
+        border-radius: 12px;
+      }
+      input[type="file"] { display: block; margin-bottom: 16px; color: #e8ecf1; }
+      ul { font-size: 13px; opacity: 0.8; padding-left: 20px; }
+      button {
+        margin-top: 8px;
+        padding: 10px 18px;
+        background: #4f8cff;
+        color: white;
+        border: 0;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 14px;
+      }
+      button:disabled { opacity: 0.6; cursor: default; }
+      .err { color: #ff6b6b; }
+      .ok { opacity: 0.9; margin-top: 16px; }
+      details { margin-top: 24px; opacity: 0.8; }
+      code { background: #141a32; padding: 2px 6px; border-radius: 4px; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>RealTax</h1>
+      <p class="lead">
+        Select bank or credit card statements (PDF or CSV) from Chase, Bank of America,
+        American Express, Wells Fargo, Citi, or Discover. RealTax combines them into one
+        Excel workbook and flags likely real-estate-agent business deductions.
+      </p>
+      <div class="card">
+        <input id="files" type="file" multiple accept=".pdf,.csv" />
+        <ul id="filelist"></ul>
+        <button id="go">Unify & Save Excel</button>
+        <p id="status"></p>
+      </div>
+      <details>
+        <summary>How flagging works</summary>
+        <p>
+          Rule-based: each transaction is matched against keyword lists for real-estate-agent
+          business categories (MLS/dues, marketing, auto/fuel, software, education, client gifts,
+          meals, office, phone/internet, travel). Because cards are mixed personal/business,
+          ambiguous items are marked <strong>Review</strong> rather than auto-deductible. The
+          Excel file shows category, confidence, and reason. Edit
+          <code>lib/classify.js</code> to add merchants you want auto-flagged.
+        </p>
+      </details>
+    </main>
+
+    <script>
+      const filesInput = document.getElementById("files");
+      const fileList = document.getElementById("filelist");
+      const goBtn = document.getElementById("go");
+      const status = document.getElementById("status");
+
+      filesInput.addEventListener("change", () => {
+        fileList.innerHTML = "";
+        for (const f of filesInput.files) {
+          const li = document.createElement("li");
+          li.textContent = `${f.name} (${Math.round(f.size / 1024)} KB)`;
+          fileList.appendChild(li);
+        }
+      });
+
+      goBtn.addEventListener("click", async () => {
+        status.textContent = "";
+        status.className = "";
+        if (!filesInput.files.length) {
+          status.textContent = "Select at least one statement.";
+          status.className = "err";
+          return;
+        }
+        goBtn.disabled = true;
+        status.textContent = "Processing…";
+        try {
+          const payload = [];
+          for (const f of filesInput.files) {
+            const buf = new Uint8Array(await f.arrayBuffer());
+            payload.push({ name: f.name, data: buf });
+          }
+          const res = await window.realtax.unify(payload);
+          if (res.canceled) {
+            status.textContent = "Save canceled.";
+          } else {
+            status.className = "ok";
+            status.textContent =
+              `Saved to ${res.filePath} — ${res.total} transactions, ` +
+              `${res.dedYes} deductible, ${res.dedReview} need review.`;
+          }
+        } catch (err) {
+          status.className = "err";
+          status.textContent = "Error: " + err.message;
+        } finally {
+          goBtn.disabled = false;
+        }
+      });
+    </script>
+  </body>
+</html>
