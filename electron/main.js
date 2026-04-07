@@ -34,9 +34,21 @@ app.on("window-all-closed", () => {
 ipcMain.handle("unify", async (_event, files) => {
   // files: [{ name, data: Uint8Array }]
   let allTx = [];
+  const fileStats = [];
   for (const f of files) {
     const buf = Buffer.from(f.data);
-    const parsed = await parseFile(f.name, buf);
+    let parsed = [];
+    let note = "";
+    try {
+      parsed = await parseFile(f.name, buf);
+    } catch (e) {
+      note = "Parse error: " + e.message;
+    }
+    if (parsed.length === 0 && !note) {
+      note = "No transactions detected — check that headers match a known bank/Amazon format";
+    }
+    const detected = parsed[0]?.source || "Unknown";
+    fileStats.push({ file: f.name, source: detected, rows: parsed.length, note });
     for (const tx of parsed) allTx.push(tx);
   }
 
@@ -53,7 +65,7 @@ ipcMain.handle("unify", async (_event, files) => {
   }
   allTx.sort((a, b) => (a.date || "").localeCompare(b.date || ""));
 
-  const xlsx = await buildWorkbook(allTx);
+  const xlsx = await buildWorkbook(allTx, fileStats);
   const dedYes = allTx.filter((t) => t.deductible === "Yes").length;
   const dedReview = allTx.filter((t) => t.deductible === "Review").length;
 
