@@ -3,12 +3,22 @@
 // classification, and write a new spreadsheet.
 //
 // Usage:
-//   node scripts/reclassify.js <input.xlsx> [output.xlsx]
+//   node scripts/reclassify.js <input.xlsx> [output.xlsx] [--flip <substring>]...
 //
 // The input file is expected to have a sheet whose first row contains
 // headers including at least "Date", "Description", and "Amount". Other
 // columns (Source, Account, etc.) are preserved. Category / Deductible /
 // Confidence / Reason are overwritten with fresh classification.
+//
+// --flip <substring>: invert the sign of the Amount for any row whose
+//   Account / Account / File / Source column contains the given substring
+//   (case-insensitive). Use this when one of your source files has the
+//   opposite sign convention from the others (e.g. a CSV that shows
+//   purchases as negative while every other file shows them as positive).
+//   Can be passed multiple times for multiple files.
+//
+// Example:
+//   node scripts/reclassify.js combined.xlsx --flip "activity"
 
 const path = require("path");
 const ExcelJS = require("exceljs");
@@ -17,9 +27,22 @@ const { classify } = require("../lib/classify");
 const TAX_YEAR = "2025";
 
 async function main() {
-  const [, , inPath, outPathArg] = process.argv;
+  const args = process.argv.slice(2);
+  const flipPatterns = [];
+  const positional = [];
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === "--flip") {
+      const p = args[++i];
+      if (p) flipPatterns.push(p.toLowerCase());
+    } else {
+      positional.push(args[i]);
+    }
+  }
+  const [inPath, outPathArg] = positional;
   if (!inPath) {
-    console.error("Usage: node scripts/reclassify.js <input.xlsx> [output.xlsx]");
+    console.error(
+      "Usage: node scripts/reclassify.js <input.xlsx> [output.xlsx] [--flip <substring>]..."
+    );
     process.exit(1);
   }
   const outPath =
@@ -28,6 +51,9 @@ async function main() {
       path.dirname(inPath),
       path.basename(inPath, path.extname(inPath)) + "-2025.xlsx"
     );
+  if (flipPatterns.length) {
+    console.log(`Sign-flip patterns: ${flipPatterns.map((p) => `"${p}"`).join(", ")}`);
+  }
 
   const wb = new ExcelJS.Workbook();
   await wb.xlsx.readFile(inPath);
@@ -96,6 +122,31 @@ async function main() {
   console.log(
     `Kept ${filtered.length} (filtered out ${rows.length - filtered.length} non-2025 rows with a date)`
   );
+
+  // Apply sign flips based on --flip patterns matching any of the
+  // identifying columns (Account / File / Source).
+  let flippedCount = 0;
+  if (flipPatterns.length) {
+    for (const r of filtered) {
+      const hay = [
+        r["Account"],
+        r["Account / File"],
+        r["File"],
+        r["Source"],
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      if (flipPatterns.some((p) => hay.includes(p))) {
+        const amt = parseAmount(r["Amount"]);
+        if (amt != null) {
+          r["Amount"] = -amt;
+          flippedCount++;
+        }
+      }
+    }
+    console.log(`Flipped signs on ${flippedCount} rows`);
+  }
 
   // Re-classify every row.
   for (const r of filtered) {
